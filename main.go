@@ -15,17 +15,6 @@ import (
 	"time"
 )
 
-// Config 下载配置(程序内部用)
-//type Config struct {
-//	URL          string
-//	OutputDir    string
-//	OutputPath   string
-//	Timeout      time.Duration
-//	ChunkSize    int64
-//	ShowProgress bool
-//	Header       http.Header
-//}
-
 func main() {
 	// 添加-mode参数来选择运行模式
 	mode := flag.String("mode", "cli", "运行模式: cli(命令行模式) 或 web(Web界面模式)")
