@@ -1,0 +1,164 @@
+name: Pre-release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.23.x]
+    outputs:
+      has_artifacts: ${{ steps.check_artifacts.outcome == 'success' }}
+      tag_name: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Build for Windows
+        run: |
+          mkdir -p dist
+          GOOS=windows GOARCH=amd64 go build -o dist/downloader-windows-amd64.exe .
+
+      - name: Build for Linux
+        run: |
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -o dist/downloader-linux-amd64 .
+
+      - name: Build for macOS
+        run: |
+          mkdir -p dist
+          GOOS=darwin GOARCH=amd64 go build -o dist/downloader-macos-amd64 .
+
+      - name: Check build artifacts
+        id: check_artifacts
+        run: |
+          if [ -f "dist/downloader-windows-amd64.exe" ] && [ -f "dist/downloader-linux-amd64" ] && [ -f "dist/downloader-macos-amd64" ]; then
+            echo "artifacts_exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "artifacts_exist=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: dist/
+          if-no-files-found: error
+
+  
+  prerelease:
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' && 
+      startsWith(github.ref, 'refs/tags/v') && 
+      needs.build.outputs.has_artifacts == 'true'
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: dist/
+
+      - name: Install/Update GitHub CLI
+        run: |
+          sudo apt update
+          sudo apt install -y gh jq
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Create Pre-release
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          set -x
+          TAG_NAME="${{ github.ref_name }}"
+          RELEASE_NAME="release ${TAG_NAME}"
+
+          echo "Using GitHub token for authentication"
+
+          
+          if ! git tag -l "${TAG_NAME}" | grep -q "${TAG_NAME}"; then
+            echo "Tag ${TAG_NAME} not found, creating..."
+            git tag "${TAG_NAME}"
+            git push origin "${TAG_NAME}"
+          fi
+
+          
+          if gh release view "${TAG_NAME}" --repo "${OWNER}/${REPO}" > /dev/null 2>&1; then
+            echo "Release ${TAG_NAME} already exists"
+            UPLOAD_URL=$(gh api "repos/${OWNER}/${REPO}/releases/tags/${TAG_NAME}" --jq '.upload_url' | sed 's/{?name,label}//')
+          else
+            echo "Creating new -release ${TAG_NAME}"
+            
+            gh release create "${TAG_NAME}" \
+              --title "${RELEASE_NAME}" \
+              --prerelease \
+              --notes "Automated release from tag ${TAG_NAME} (run: ${{ github.run_number }})" \
+              --repo "${OWNER}/${REPO}"
+
+            UPLOAD_URL=$(gh api "repos/${OWNER}/${REPO}/releases/tags/${TAG_NAME}" --jq '.upload_url' | sed 's/{?name,label}//')
+          fi
+
+          if [ -z "${UPLOAD_URL}" ]; then
+            echo "Error: upload_url is empty"
+            exit 1
+          fi
+
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "upload_url=${UPLOAD_URL}" >> $GITHUB_OUTPUT
+      - name: Upload release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          set -x
+          TAG_NAME="${{ steps.create_release.outputs.tag_name }}"
+          
+          echo "Listing dist files:"
+          ls -l dist/
+          
+          gh release upload "${TAG_NAME}" \
+            dist/* \
+            --repo "${OWNER}/${REPO}" \
+            --clobber
+          
+          echo "Assets uploaded successfully"

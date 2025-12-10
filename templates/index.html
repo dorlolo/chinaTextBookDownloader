@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>国家中小学教育平台资源下载器</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background-color: white; padding: 30px; position: relative; }
+        h1 { color: #333; text-align: center; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        #url { padding: 15px; font-size: 16px; }
+        input[type="checkbox"] { margin-right: 10px; }
+        button { background-color: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; margin-bottom: 10px; }
+        button:hover { background-color: #0056b3; }
+        #exitBtn { background-color: #dc3545; }
+        #exitBtn:hover { background-color: #c82333; }
+        #openWebsiteBtn { background-color: #6c757d; width: auto; padding: 8px 15px; font-size: 14px; position: absolute; top: 30px; right: 120px; }
+        #openWebsiteBtn:hover { background-color: #5a6268; }
+        #settingsBtn { background-color: #28a745; width: auto; padding: 8px 15px; font-size: 14px; position: absolute; top: 30px; right: 30px; }
+        #settingsBtn:hover { background-color: #218838; }
+        #resetBtn { background-color: #ffc107; color: #212529; }
+        #resetBtn:hover { background-color: #e0a800; }
+        #addHeaderBtn { background-color: #17a2b8; width: auto; padding: 5px 10px; font-size: 14px; margin-top: 10px; }
+        #addHeaderBtn:hover { background-color: #138496; }
+        .clearfix::after { content: ""; clear: both; display: table; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgb(0,0,0); background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 1200px; border-radius: 10px; max-height: 90vh; overflow-y: auto; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+        .hidden { display: none; }
+        .button-group { display: flex; gap: 10px; margin-top: 20px; }
+        .button-group button { width: auto; flex: 1; }
+        .header-item { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .header-key { flex: 1; min-width: 150px; max-width: 200px; }
+        .header-value { flex: 3; min-width: 300px; }
+        .remove-header { background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; padding: 5px 10px; width: 60px; flex-shrink: 0; }
+        .remove-header:hover { background-color: #c82333; }
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid #ddd; }
+        .tab { padding: 10px 20px; cursor: pointer; background-color: #f8f9fa; border: 1px solid #ddd; border-bottom: none; border-radius: 5px 5px 0 0; margin-right: 5px; }
+        .tab.active { background-color: white; border-bottom: 1px solid white; margin-bottom: -1px; font-weight: bold; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .modal-footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+        
+        /* 下载列表样式 */
+        .downloads-list { margin-top: 30px; max-width: 100%; overflow-x: auto; }
+        .downloads-list h2 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .download-table { width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: fixed; }
+        .download-table th, .download-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        .download-table th { background-color: #f8f9fa; font-weight: bold; }
+        .download-table tr:hover { background-color: #f5f5f5; }
+        .filename { font-weight: bold; color: #007bff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .filepath { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+        .filesize { white-space: nowrap; }
+        .status { font-weight: bold; padding: 3px 8px; border-radius: 3px; white-space: nowrap; }
+        .status.pending { background-color: #ffc107; color: #212529; }
+        .status.downloading { background-color: #17a2b8; color: white; }
+        .status.completed { background-color: #28a745; color: white; }
+        .status.failed { background-color: #dc3545; color: white; }
+        .download-progress-cell { width: 200px; }
+        .download-progress { margin-top: 5px; }
+        .progress-text { text-align: center; font-size: 14px; margin-top: 5px; }
+        
+        /* 请求头输入框样式调整，确保长内容能完整显示 */
+        .header-key, .header-value { 
+            min-width: 150px; 
+            width: auto; 
+            flex: 1 1 auto; 
+            overflow: visible;
+            text-overflow: clip;
+            white-space: nowrap;
+        }
+        
+        /* 当鼠标悬停在输入框上时显示完整内容 */
+        .header-key:hover, .header-value:hover { 
+            width: auto; 
+            min-width: 300px; 
+            z-index: 10;
+            position: relative;
+            overflow: visible;
+        }
+        
+        /* 容器调整以适应长内容 */
+        #headers-container {
+            overflow-x: visible;
+        }
+        
+        /* 输入框焦点样式，确保长内容可见 */
+        .header-value:focus {
+            min-width: 400px;
+            z-index: 20;
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button id="openWebsiteBtn">打开官网</button>
+        <button id="settingsBtn">设置</button>
+        <h1>国家中小学教育平台资源下载器</h1>
+        
+        <div class="form-group">
+            <label for="url">文件链接:</label>
+            <input type="text" id="url" name="url" value="{{.URL}}" required>
+        </div>
+        
+        <button id="downloadBtn">开始下载</button>
+        <button id="exitBtn">退出程序</button>
+        
+        <!-- 下载列表 -->
+        <div class="downloads-list">
+            <h2>下载列表</h2>
+            <table class="download-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">文件名</th>
+                        <th style="width: 15%;">文件大小</th>
+                        <th style="width: 30%;">保存路径</th>
+                        <th style="width: 10%;">状态</th>
+                        <th style="width: 20%;">进度</th>
+                    </tr>
+                </thead>
+                <tbody id="downloadsContainer">
+                    <!-- 下载项将在这里动态添加 -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="clearfix"></div>
+        
+        <div id="result"></div>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>配置设置</h2>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('general-tab')">通用配置</div>
+                <div class="tab" onclick="switchTab('headers-tab')">请求头配置</div>
+            </div>
+            
+            <!-- 通用配置标签页 -->
+            <div id="general-tab" class="tab-content active">
+                <form id="generalConfigForm">
+                    <div class="form-group">
+                        <label for="output_path">输出文件路径:</label>
+                        <input type="text" id="output_path" name="output_path" value="{{.OutputPath}}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="timeout">超时时间:</label>
+                        <input type="text" id="timeout" name="timeout" value="{{.Timeout}}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="chunk_size">分块大小 (字节):</label>
+                        <input type="number" id="chunk_size" name="chunk_size" value="{{.ChunkSize}}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            
+                        </label>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 请求头配置标签页 -->
+            <div id="headers-tab" class="tab-content">
+                <form id="headersConfigForm">
+                    <div id="headers-container">
+                        <!-- 动态添加的请求头项将在这里显示 -->
+                    </div>
+                    <button type="button" id="addHeaderBtn">添加请求头</button>
+                </form>
+            </div>
+            
+            <!-- 模态框底部按钮 -->
+            <div class="modal-footer">
+                <div class="button-group">
+                    <button type="button" onclick="saveConfig()">保存配置</button>
+                    <button type="button" id="resetBtn">恢复默认设置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // WebSocket连接
+        let ws = null;
+        
+        // 初始化WebSocket连接
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = protocol + '//' + window.location.host + '/ws';
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function(event) {
+                console.log('WebSocket连接已建立');
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const progress = JSON.parse(event.data);
+                    updateDownloadProgress(progress);
+                } catch (e) {
+                    console.error('解析WebSocket消息失败:', e);
+                }
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket错误:', error);
+            };
+            
+            ws.onclose = function(event) {
+                console.log('WebSocket连接已关闭');
+                // 尝试重新连接
+                setTimeout(initWebSocket, 3000);
+            };
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('load', function() {
+            // 初始化WebSocket连接
+            initWebSocket();
+            
+            // 从服务端获取配置信息
+            fetch('/config')
+                .then(response => response.json())
+                .then(config => {
+                    // 设置表单字段值
+                    document.getElementById('url').value = config.url || '';
+                    document.getElementById('output_path').value = config.output_path || '';
+                    document.getElementById('timeout').value = config.timeout || '30s';
+                    document.getElementById('chunk_size').value = config.chunk_size || 4194304;
+                })
+                .catch(error => {
+                    console.error('获取配置信息失败:', error);
+                });
+        });
+        
+        // 切换标签页
+        function switchTab(tabId) {
+            // 隐藏所有标签页内容
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 移除所有标签的激活状态
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 显示选中的标签页内容
+            document.getElementById(tabId).classList.add('active');
+            
+            // 激活点击的标签
+            event.target.classList.add('active');
+        }
+        
+        // 添加请求头字段
+        function addHeaderField(key = '', value = '') {
+            const container = document.getElementById('headers-container');
+            const headerItem = document.createElement('div');
+            headerItem.className = 'header-item';
+            
+            const keyInput = document.createElement('input');
+            keyInput.type = 'text';
+            keyInput.className = 'header-key';
+            keyInput.placeholder = '请求头名称';
+            keyInput.value = key;
+            
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.className = 'header-value';
+            valueInput.placeholder = '请求头值';
+            valueInput.value = value;
+            
+            // 为长内容添加标题提示
+            if (value.length > 50) {
+                valueInput.title = value;
+            }
+            
+            // 监听输入变化，为长内容添加标题提示
+            valueInput.addEventListener('input', function() {
+                if (this.value.length > 50) {
+                    this.title = this.value;
+                } else {
+                    this.removeAttribute('title');
+                }
+            });
+            
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'remove-header';
+            removeButton.textContent = '删除';
+            
+            headerItem.appendChild(keyInput);
+            headerItem.appendChild(valueInput);
+            headerItem.appendChild(removeButton);
+            
+            container.appendChild(headerItem);
+            
+            // 添加删除事件
+            removeButton.addEventListener('click', function() {
+                container.removeChild(headerItem);
+            });
+        }
+        
+        // 打开设置模态框
+        document.getElementById("settingsBtn").onclick = function() {
+            // 从服务端获取配置信息
+            fetch('/config')
+                .then(response => response.json())
+                .then(config => {
+                    // 初始化请求头显示
+                    const container = document.getElementById('headers-container');
+                    container.innerHTML = '';
+                    
+                    // 添加请求头字段
+                    for (const [key, value] of Object.entries(config.headers || {})) {
+                        addHeaderField(key, value);
+                    }
+                    
+                    // 设置表单字段值
+                    document.getElementById('url').value = config.url || '';
+                    document.getElementById('output_path').value = config.output_path || '';
+                    document.getElementById('timeout').value = config.timeout || '30s';
+                    document.getElementById('chunk_size').value = config.chunk_size || 4194304;
+                })
+                .catch(error => {
+                    console.error('获取配置信息失败:', error);
+                    // 如果获取配置失败，清空请求头显示
+                    const container = document.getElementById('headers-container');
+                    container.innerHTML = '';
+                });
+            
+            document.getElementById("settingsModal").style.display = "block";
+        }
+
+        // 打开官网
+        document.getElementById("openWebsiteBtn").onclick = function() {
+            window.open('https://basic.smartedu.cn/', '_blank');
+        }
+
+        // 关闭模态框
+        document.getElementsByClassName("close")[0].onclick = function() {
+            document.getElementById("settingsModal").style.display = "none";
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            var modal = document.getElementById("settingsModal");
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // 添加请求头按钮事件
+        document.getElementById('addHeaderBtn').addEventListener('click', function() {
+            addHeaderField();
+        });
+
+        // 保存配置（统一保存）
+        function saveConfig() {
+            // 收集通用配置
+            const generalData = {};
+            const generalForm = document.getElementById('generalConfigForm');
+            const generalFormData = new FormData(generalForm);
+            
+            for (let [key, value] of generalFormData.entries()) {
+                if (key === 'show_progress') {
+                    generalData[key] = document.getElementById('show_progress').checked;
+                } else if (key === 'chunk_size') {
+                    generalData[key] = parseInt(value);
+                } else {
+                    generalData[key] = value;
+                }
+            }
+            
+            // 收集请求头配置
+            const headers = {};
+            const headerItems = document.querySelectorAll('.header-item');
+            headerItems.forEach(item => {
+                const inputs = item.querySelectorAll('input');
+                const key = inputs[0].value.trim();
+                const value = inputs[1].value.trim();
+                if (key && value) {
+                    headers[key] = value;
+                }
+            });
+            
+            // 合并数据
+            const data = {...generalData, headers: headers};
+            
+            fetch('/save-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('result');
+                if (data.success) {
+                    resultDiv.innerHTML = '<div class="result success">配置保存成功!</div>';
+                    // 不再自动隐藏成功消息，让用户能够看到保存成功的提示
+                } else {
+                    resultDiv.innerHTML = '<div class="result error">配置保存失败: ' + data.message + '</div>';
+                    // 5秒后自动隐藏错误消息
+                    setTimeout(function() {
+                        resultDiv.innerHTML = '';
+                    }, 5000);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = '<div class="result error">保存配置时发生错误: ' + error.message + '</div>';
+                // 5秒后自动隐藏错误消息
+                setTimeout(function() {
+                    resultDiv.innerHTML = '';
+                }, 5000);
+            });
+        }
+        
+        // 恢复默认设置
+        document.getElementById('resetBtn').addEventListener('click', function() {
+            if (confirm('确定要恢复默认设置吗？这将覆盖当前的所有配置。')) {
+                fetch('/reset-config', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 更新通用配置字段为默认值
+                        document.getElementById('output_path').value = '';
+                        document.getElementById('timeout').value = '30s';
+                        document.getElementById('chunk_size').value = 4194304;
+                        document.getElementById('show_progress').checked = true;
+                        
+                        // 更新请求头字段
+                        const container = document.getElementById('headers-container');
+                        container.innerHTML = '';
+                        // 使用默认的请求头配置
+                        const defaultHeaders = {
+                            'Origin': 'https://basic.smartedu.cn',
+                            'Referer': 'https://basic.smartedu.cn/',
+                            'Priority': 'u=1, i',
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36'
+                        };
+                        for (const [key, value] of Object.entries(defaultHeaders)) {
+                            addHeaderField(key, value);
+                        }
+                        
+                        const resultDiv = document.getElementById('result');
+                        resultDiv.innerHTML = '<div class="result success">已恢复默认设置!</div>';
+                        // 2秒后自动隐藏成功消息
+                        setTimeout(function() {
+                            resultDiv.innerHTML = '';
+                        }, 2000);
+                    } else {
+                        const resultDiv = document.getElementById('result');
+                        resultDiv.innerHTML = '<div class="result error">恢复默认设置失败: ' + data.message + '</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.innerHTML = '<div class="result error">恢复默认设置时发生错误</div>';
+                });
+            }
+        });
+        
+        // URL解码函数
+        function decodeFileName(encodedName) {
+            try {
+                return decodeURIComponent(encodedName);
+            } catch (e) {
+                console.error('URL解码失败:', e);
+                return encodedName;
+            }
+        }
+        
+        // 添加下载任务到列表
+        function addDownloadToList(taskId, filename, outputPath, totalSize) {
+            const container = document.getElementById('downloadsContainer');
+            
+            // 对文件名进行URL解码
+            const decodedFilename = decodeFileName(filename);
+            
+            // 创建下载项元素
+            const downloadRow = document.createElement('tr');
+            downloadRow.id = `download-${taskId}`;
+            downloadRow.innerHTML = `
+                <td class="filename" title="${decodedFilename}">${decodedFilename}</td>
+                <td class="filesize" id="size-${taskId}">${totalSize > 0 ? formatFileSize(totalSize) : '-'}</td>
+                <td class="filepath" title="${outputPath}">${outputPath}</td>
+                <td><span class="status pending" id="status-${taskId}">等待中</span></td>
+                <td class="download-progress-cell">
+                    <div class="download-progress">
+                        <div class="progress-bar" style="width: 100%; height: 20px; background-color: #f0f0f0; border-radius: 10px; overflow: hidden;">
+                            <div class="progress-fill" id="progress-fill-${taskId}" style="width: 0%; height: 100%; background-color: #007bff; transition: width 0.3s ease;"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text-${taskId}" style="margin-top: 5px; text-align: center;">0%</div>
+                    </div>
+                </td>
+            `;
+            
+            // 将新下载项添加到列表顶部
+            container.insertBefore(downloadRow, container.firstChild);
+        }
+        
+        // 更新下载进度
+        function updateDownloadProgress(progress) {
+            const taskId = progress.task_id;
+            const downloadRow = document.getElementById(`download-${taskId}`);
+            
+            if (!downloadRow) {
+                // 如果下载项不存在，可能是页面刷新后的新连接，忽略更新
+                return;
+            }
+            
+            // 更新状态
+            const statusElement = document.getElementById(`status-${taskId}`);
+            statusElement.className = `status ${progress.status}`;
+            statusElement.textContent = getStatusText(progress.status);
+            
+            // 更新文件大小
+            const sizeElement = document.getElementById(`size-${taskId}`);
+            if (progress.total > 0) {
+                sizeElement.textContent = formatFileSize(progress.total);
+            }
+            
+            // 更新进度条
+            const progressFill = document.getElementById(`progress-fill-${taskId}`);
+            const progressText = document.getElementById(`progress-text-${taskId}`);
+            progressFill.style.width = `${progress.percent}%`;
+            progressText.textContent = `${progress.percent.toFixed(1)}%`;
+            
+            // 如果有错误信息，显示错误信息
+            if (progress.error_msg && progress.status === 'failed') {
+                // 在表格中添加一列显示错误信息
+                const errorCell = document.createElement('tr');
+                errorCell.innerHTML = `<td colspan="5" style="color: red; font-size: 14px; padding: 5px 10px; background-color: #ffe6e6; border-left: 3px solid red;">错误信息: ${progress.error_msg}</td>`;
+                
+                // 插入到当前行的下面
+                const nextSibling = downloadRow.nextSibling;
+                if (nextSibling && nextSibling.id && nextSibling.id.startsWith('error-')) {
+                    // 如果已经存在错误行，先移除
+                    downloadRow.parentNode.removeChild(nextSibling);
+                }
+                
+                // 插入错误信息行
+                downloadRow.parentNode.insertBefore(errorCell, downloadRow.nextSibling);
+                errorCell.id = `error-${taskId}`;
+            } else {
+                // 如果状态不是失败，移除可能存在的错误信息行
+                const errorRow = document.getElementById(`error-${taskId}`);
+                if (errorRow) {
+                    errorRow.parentNode.removeChild(errorRow);
+                }
+            }
+        }
+        
+        // 获取状态文本
+        function getStatusText(status) {
+            switch (status) {
+                case 'pending': return '等待中';
+                case 'downloading': return '下载中';
+                case 'completed': return '已完成';
+                case 'failed': return '失败';
+                default: return status;
+            }
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // 生成唯一任务ID
+        function generateTaskId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+        
+        // 开始下载
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            const btn = this;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '下载中...';
+            
+            // 获取URL输入框的值
+            const url = document.getElementById('url').value;
+            
+            fetch('/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({url: url})
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => { throw new Error(text) });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // 使用接口返回的任务信息创建下载项
+                    addDownloadToList(data.task_id, data.filename, data.output_path, data.total_size);
+                    
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.innerHTML = '<div class="result success">' + data.message + '</div>';
+                } else {
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.innerHTML = '<div class="result error">下载启动失败: ' + data.message + '</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = '<div class="result error">启动下载时发生错误: ' + error.message + '</div>';
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = originalText;
+                // 重置自动退出计时器
+                resetAutoExitTimer();
+            });
+        });
+        
+        // 退出程序
+        document.getElementById('exitBtn').addEventListener('click', function() {
+            if (confirm('确定要退出程序吗？')) {
+                fetch('/exit', {
+                    method: 'POST'
+                })
+                .then(() => {
+                    document.getElementById('result').innerHTML = '<div class="result success">程序正在退出...</div>';
+                    // 延迟关闭页面
+                    setTimeout(function() {
+                        window.close();
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // 如果无法通过API退出，则直接关闭页面
+                    window.close();
+                });
+            }
+        });
+        
+        // 自动退出计时器
+        let autoExitTimer;
+        
+        // 重置自动退出计时器
+        function resetAutoExitTimer() {
+            // 清除之前的计时器
+            if (autoExitTimer) {
+                clearTimeout(autoExitTimer);
+            }
+            // 设置5分钟后自动退出
+            autoExitTimer = setTimeout(function() {
+                fetch('/exit', {
+                    method: 'POST'
+                })
+                .then(() => {
+                    console.log('程序因长时间无操作自动退出');
+                    window.close();
+                })
+                .catch(() => {
+                    // 如果API调用失败，直接关闭窗口
+                    window.close();
+                });
+            }, 5 * 60 * 1000); // 5分钟
+        }
+        
+        // 页面加载时启动自动退出计时器
+        window.addEventListener('load', function() {
+            resetAutoExitTimer();
+        });
+        
+        // 用户活动时重置计时器
+        document.addEventListener('mousemove', resetAutoExitTimer);
+        document.addEventListener('keypress', resetAutoExitTimer);
+        document.addEventListener('click', resetAutoExitTimer);
+    </script>
+</body>
+</html>
