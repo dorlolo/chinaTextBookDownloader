@@ -65,7 +65,7 @@ downloader.exe -mode web
 ![strep3_find_api.png](docs/images/strep3_find_api.png)
 - 2.4 复制请求头中的`X-Nd-Auth`后面跟随的值
 ![step4_copy_header.png](docs/images/step4_1_copy_header.png)
-打开工具设置页面，将`X-Nd-Auth`后面的值粘贴到`请求头`中,并点击`保存配置`。不需要反复报错，后面如果遇到无法下载资源，再进行更新。
+打开工具设置页面，将`X-Nd-Auth`后面的值粘贴到`请求头`中,并点击`保存配置`。这一步不需要反复操作，后面如果遇到无法下载资源的情况再修改。
 ![step4_2_parse_to_headers.png](docs/images/step4_2_parse_to_headers.png)
 
 3. 复制网址粘贴到工具中下载即可
